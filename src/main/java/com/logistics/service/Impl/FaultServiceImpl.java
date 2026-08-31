@@ -1,7 +1,11 @@
 package com.logistics.service.Impl;
 
+import com.logistics.entity.Driver;
 import com.logistics.entity.Fault;
+import com.logistics.entity.Vehicle;
+import com.logistics.repository.DriverRepository;
 import com.logistics.repository.FaultRepository;
+import com.logistics.repository.VehicleRepository;
 import com.logistics.service.FaultService;
 import org.springframework.stereotype.Service;
 
@@ -12,13 +16,20 @@ import java.util.Optional;
 public class FaultServiceImpl implements FaultService {
 
     private final FaultRepository faultRepository;
+    private final DriverRepository driverRepository;
+    private final VehicleRepository vehicleRepository;
 
-    public FaultServiceImpl(FaultRepository faultRepository) {
+    public FaultServiceImpl(FaultRepository faultRepository,
+                            DriverRepository driverRepository,
+                            VehicleRepository vehicleRepository) {
         this.faultRepository = faultRepository;
+        this.driverRepository = driverRepository;
+        this.vehicleRepository = vehicleRepository;
     }
 
     @Override
     public Fault createFault(Fault fault) {
+        attachRelations(fault);
         return faultRepository.save(fault);
     }
 
@@ -31,6 +42,15 @@ public class FaultServiceImpl implements FaultService {
             fault.setReportedAt(updatedFault.getReportedAt());
             fault.setResolved(updatedFault.isResolved());
             fault.setResolutionNotes(updatedFault.getResolutionNotes());
+            if (updatedFault.getDriver() != null || updatedFault.getVehicle() != null) {
+                attachRelations(updatedFault);
+                if (updatedFault.getDriver() != null) {
+                    fault.setDriver(updatedFault.getDriver());
+                }
+                if (updatedFault.getVehicle() != null) {
+                    fault.setVehicle(updatedFault.getVehicle());
+                }
+            }
             return faultRepository.save(fault);
         }
         throw new RuntimeException("Fault not found with id: " + id);
@@ -67,5 +87,18 @@ public class FaultServiceImpl implements FaultService {
     @Override
     public void deleteFault(Long id) {
         faultRepository.deleteById(id);
+    }
+
+    private void attachRelations(Fault fault) {
+        if (fault.getDriver() != null && fault.getDriver().getId() != null) {
+            Driver driver = driverRepository.findById(fault.getDriver().getId())
+                    .orElseThrow(() -> new RuntimeException("Driver not found with id: " + fault.getDriver().getId()));
+            fault.setDriver(driver);
+        }
+        if (fault.getVehicle() != null && fault.getVehicle().getId() != null) {
+            Vehicle vehicle = vehicleRepository.findById(fault.getVehicle().getId())
+                    .orElseThrow(() -> new RuntimeException("Vehicle not found with id: " + fault.getVehicle().getId()));
+            fault.setVehicle(vehicle);
+        }
     }
 }

@@ -53,10 +53,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/signup", "/api/auth/login").permitAll()
-                        .requestMatchers("/api/driver-trips/driver/username/{userId}").authenticated() // Specifically authorize this endpoint
+                        .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class); // Add JWT filter
+                .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
@@ -65,7 +65,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",  // Flutter dev server
-                "http://192.168.32.11"    // Your specific IP
+                "http://192.168.68.43"    // Your specific IP
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList(

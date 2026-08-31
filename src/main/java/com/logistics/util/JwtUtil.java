@@ -1,20 +1,29 @@
 package com.logistics.util;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
-    private final Key secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);
-    private final long jwtExpirationMs = 86400000; // 24 hours
+    private final Key secretKey;
+    private final long jwtExpirationMs;
+
+    public JwtUtil(
+            @Value("${jwt.secret:ThisIsADevOnlySecretKeyThatMustBeAtLeastSixtyFourBytesLongForHS512!!}") String secret,
+            @Value("${jwt.expiration-ms:86400000}") long jwtExpirationMs) {
+        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.jwtExpirationMs = jwtExpirationMs;
+    }
 
     public String generateToken(String username) {
         return Jwts.builder()

@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface DriverRepository extends JpaRepository<Driver, Long> {
 
-    @Query("SELECT d FROM Driver d WHERE d.name = :username")
+    @Query("SELECT d FROM Driver d WHERE d.username = :username")
     Optional<Driver> findByUsername(@Param("username") String username);
 
 }

@@ -22,8 +22,9 @@ public class DriverServiceImpl implements DriverService {
 
     @Override
     public Driver saveDriver(Driver driver) {
-        // Encrypt password
-        driver.setPassword(passwordEncoder.encode(driver.getPassword()));
+        if (driver.getPassword() != null && !driver.getPassword().isBlank()) {
+            driver.setPassword(passwordEncoder.encode(driver.getPassword()));
+        }
         return driverRepository.save(driver);
     }
 

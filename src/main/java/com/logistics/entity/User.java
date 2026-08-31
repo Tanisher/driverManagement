@@ -1,5 +1,6 @@
 package com.logistics.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -10,6 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@Table(name = "users")
 @Inheritance(strategy = InheritanceType.JOINED)
 public class User {
     @Id
@@ -19,6 +21,7 @@ public class User {
     @NotBlank(message = "Username is required")
     private String username;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must be at least 6 characters long")
     private String password;

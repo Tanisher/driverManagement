@@ -29,8 +29,9 @@ public class Customer {
     @OneToMany(mappedBy = "customer")
     private List<Load> loads = new ArrayList<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "customer")
-    private List<DriverTrip>driverTrips;
+    private List<DriverTrip> driverTrips;
 
 }
 

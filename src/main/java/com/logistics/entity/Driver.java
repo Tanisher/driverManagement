@@ -3,6 +3,7 @@
 package com.logistics.entity;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,10 +24,12 @@ public class Driver extends User {
     private String mobileNumber;
     private String idNumber;
 
+    @JsonIgnore
     @ManyToOne
-    @JoinColumn(name = "vehicle_id", nullable = true) // A driver may or may not have a vehicle
+    @JoinColumn(name = "vehicle_id", nullable = true)
     private Vehicle vehicle;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "driver")
     private List<Fault> faults;
 

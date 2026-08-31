@@ -1,5 +1,6 @@
 package com.logistics.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -33,7 +34,7 @@ public class Load {
     @JoinColumn(name = "customer_id", insertable = false, updatable = false)
     private Customer customer;
 
-    // Relationships
+    @JsonIgnore
     @OneToMany(mappedBy = "load")
     private List<DriverTrip> trips;
 

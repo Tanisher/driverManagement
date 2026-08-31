@@ -4,6 +4,8 @@ Spring Boot REST API for logistics operations: drivers, vehicles, trips, loads, 
 
 Maven artifact: `com.logistics:logistics` (`0.0.1-SNAPSHOT`). Application class: `com.logistics.LogisticsApplication`.
 
+For a walkthrough of what this product is meant to become (roles, clients, unfinished work), see [INTENDED_PRODUCT.md](INTENDED_PRODUCT.md).
+
 ## Tech stack
 
 - Java 17
@@ -11,17 +13,16 @@ Maven artifact: `com.logistics:logistics` (`0.0.1-SNAPSHOT`). Application class:
 - Spring Web, Spring Data JPA, Spring Security
 - MySQL (`mysql-connector-j`)
 - Lombok
-- JWT (`JwtUtil`) for stateless auth
+- JWT (`jjwt` + `JwtUtil`) for stateless auth
 - STOMP over SockJS for vehicle location updates
 
 ## Prerequisites
 
 - JDK 17+
 - Maven 3.9+ (or use the included `mvnw` / `mvnw.cmd`)
-- MySQL listening on the host and port in `src/main/resources/application.properties` (currently `localhost:3307`)
-- A database named `logistics`
+- MySQL on the host/port in `application.properties` (currently `localhost:3306`) and a database named `logistics`
 
-Schema is managed by Hibernate (`spring.jpa.hibernate.ddl-auto=create-drop`), so tables are created on startup and **dropped on shutdown**. Change this before using the app with real data.
+Hibernate `ddl-auto` is `update` (schema is created/updated on startup; existing data is kept).
 
 ## Configuration
 
@@ -29,35 +30,31 @@ Edit `src/main/resources/application.properties`:
 
 ```properties
 spring.application.name=logistics
-spring.datasource.url=jdbc:mysql://localhost:3307/logistics
+spring.datasource.url=jdbc:mysql://localhost:3306/logistics
 spring.datasource.username=root
 spring.datasource.password=<your-password>
-spring.jpa.hibernate.ddl-auto=create-drop
+spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
+jwt.secret=<at-least-64-characters>
+jwt.expiration-ms=86400000
 ```
 
 CORS is allowed from `http://localhost:3000` and `http://192.168.32.11` (see `SecurityConfig`).
 
 ## Run
 
-From the project root:
-
-```bash
-./mvnw spring-boot:run
-```
-
-On Windows:
+MySQL must be running with a `logistics` database, and credentials in `application.properties` must match.
 
 ```bash
 mvnw.cmd spring-boot:run
 ```
 
-The API listens on port **8080** by default.
+The API listens on port **8080**.
 
-Tests:
+Tests (in-memory H2, tests only — not used when you run the app):
 
 ```bash
-./mvnw test
+mvnw.cmd test
 ```
 
 ## Authentication

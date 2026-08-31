@@ -7,6 +7,7 @@
 
 package com.logistics.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,7 +38,7 @@ public class Vehicle {
     @Column(nullable = false)
     private String model;
 
-    @Column(nullable = false)
+    @Column(name = "model_year", nullable = false)
     private int year;
 
     @Column(nullable = false)
@@ -49,6 +50,7 @@ public class Vehicle {
     @Column
     private LocalDate lastServiceDate;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Fault> faults;
 
