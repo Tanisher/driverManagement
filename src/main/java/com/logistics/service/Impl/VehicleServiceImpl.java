@@ -74,6 +74,9 @@ public class VehicleServiceImpl implements VehicleService {
         existingVehicle.setActive(vehicle.isActive());
         existingVehicle.setLastServiceDate(vehicle.getLastServiceDate());
         existingVehicle.setVehicleType(vehicle.getVehicleType());
+        if (vehicle.getVehicleType() != null) {
+            existingVehicle.setVehicleTypeDefaulted(false);
+        }
 
         return vehicleRepository.save(existingVehicle);
     }
@@ -106,6 +109,7 @@ public class VehicleServiceImpl implements VehicleService {
         }
         if (dto.getVehicleType() != null) {
             existing.setVehicleType(dto.getVehicleType());
+            existing.setVehicleTypeDefaulted(false);
         }
         if (dto.getLatitude() != null) {
             existing.setLatitude(dto.getLatitude());

@@ -98,6 +98,8 @@ class LoadServiceImplTest {
     void getBillableAmountUsesLoadedTripDistanceForPerKm() {
         load.setPricingMode(PricingMode.PER_KM);
         load.setRatePerKm(new BigDecimal("5.00"));
+        load.setCargoType(CargoType.BAGGED);
+        load.setWeight("10");
 
         LoadedTrip loaded = new LoadedTrip();
         loaded.setStatus(TripStatus.COMPLETED);
@@ -110,8 +112,35 @@ class LoadServiceImplTest {
 
         var result = loadService.getBillableAmount(1L);
 
-        assertEquals(new BigDecimal("300.00"), result.getBillableAmount());
+        // 5.00 × 60 km × 10 t
+        assertEquals(new BigDecimal("3000.00"), result.getBillableAmount());
         assertEquals(new BigDecimal("60.0"), result.getLoadedKm());
         assertEquals(PricingMode.PER_KM, result.getPricingMode());
+        assertEquals(false, result.isWeightEstimated());
+    }
+
+    @Test
+    void setActualWeightPersistsWeighbridgeReadingOnBulkLoad() {
+        load.setCargoType(CargoType.BULK);
+        when(loadRepository.findById(1L)).thenReturn(Optional.of(load));
+        when(loadRepository.save(any(Load.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Load updated = loadService.setActualWeight(1L, new BigDecimal("12.5"));
+
+        assertEquals(new BigDecimal("12.5"), updated.getActualWeight());
+        verify(loadRepository).save(load);
+    }
+
+    @Test
+    void setActualWeightRejectsNonBulkLoad() {
+        load.setCargoType(CargoType.BAGGED);
+        when(loadRepository.findById(1L)).thenReturn(Optional.of(load));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> loadService.setActualWeight(1L, new BigDecimal("12.5")));
+
+        assertEquals(400, ex.getStatusCode().value());
+        assertEquals("actualWeight applies to BULK loads only", ex.getReason());
+        verify(loadRepository, never()).save(any());
     }
 }

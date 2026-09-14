@@ -24,6 +24,13 @@ public class Load {
 
     private String description;
     private String weight;
+
+    /**
+     * Weighbridge reading in tonnes. Used for BULK PER_KM billing when present.
+     */
+    @Column(name = "actual_weight", precision = 19, scale = 4)
+    private BigDecimal actualWeight;
+
     private String pickupLocation;
     private String deliveryLocation;
     private String status = STATUS_PENDING;
@@ -31,6 +38,12 @@ public class Load {
     @Enumerated(EnumType.STRING)
     @Column(name = "cargo_type")
     private CargoType cargoType;
+
+    /**
+     * True when cargoType was filled by the one-off GENERAL backfill, not by office.
+     */
+    @Column(name = "cargo_type_defaulted", nullable = false)
+    private boolean cargoTypeDefaulted = false;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "pricing_mode")

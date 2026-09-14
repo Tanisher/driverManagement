@@ -1,6 +1,7 @@
 package com.logistics.service;
 
 import com.logistics.DTO.DeadheadEndResponse;
+import com.logistics.DTO.DriverActiveTripResponse;
 import com.logistics.DTO.EndDeadheadRequest;
 import com.logistics.DTO.EndLoadedTripRequest;
 import com.logistics.DTO.StartDeadheadRequest;
@@ -10,8 +11,11 @@ import com.logistics.entity.Trip;
 import com.logistics.entity.TripDTO;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface TripService {
+    Optional<DriverActiveTripResponse> findActiveTripForCurrentDriver();
+
     TripResponse startDeadhead(StartDeadheadRequest request);
 
     DeadheadEndResponse endDeadhead(Long deadheadId, EndDeadheadRequest request);

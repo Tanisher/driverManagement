@@ -5,6 +5,7 @@ import com.logistics.entity.Load;
 import com.logistics.entity.LoadDTO;
 import com.logistics.util.DriverAssignmentRequest;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface LoadService {
@@ -15,6 +16,7 @@ public interface LoadService {
     Load getLoadById(Long id);
     void deleteLoad(Long id);
     Load assignDriver(Long loadId, DriverAssignmentRequest request);
+    Load setActualWeight(Long loadId, BigDecimal actualWeight);
     LoadBillableAmountResponse getBillableAmount(Long loadId);
     LoadDTO convertToDTO(Load savedLoad);
 }

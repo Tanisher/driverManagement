@@ -24,6 +24,7 @@ public class VehicleDTO {
     private boolean active;  // changed from Boolean to boolean
     private LocalDate lastServiceDate;  // changed from LocalDateTime to LocalDate
     private CargoType vehicleType;
+    private boolean vehicleTypeDefaulted;
     private Double latitude;
     private Double longitude;
     private DriverDTO driver;

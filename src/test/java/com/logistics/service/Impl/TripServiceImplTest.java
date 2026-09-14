@@ -1,13 +1,16 @@
 package com.logistics.service.Impl;
 
+import com.logistics.DTO.DriverActiveTripResponse;
 import com.logistics.DTO.EndDeadheadRequest;
 import com.logistics.DTO.EndLoadedTripRequest;
 import com.logistics.DTO.StartDeadheadRequest;
 import com.logistics.DTO.TripMapper;
+import com.logistics.entity.CargoType;
 import com.logistics.entity.DeadheadTrip;
 import com.logistics.entity.Driver;
 import com.logistics.entity.Load;
 import com.logistics.entity.LoadedTrip;
+import com.logistics.entity.TripLegType;
 import com.logistics.entity.TripStatus;
 import com.logistics.entity.Vehicle;
 import com.logistics.exception.InvalidMileageException;
@@ -27,16 +30,21 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -69,12 +77,15 @@ class TripServiceImplTest {
         vehicle = new Vehicle();
         vehicle.setId(20L);
         vehicle.setLicensePlate("ABC123");
+        vehicle.setVehicleType(CargoType.BAGGED);
 
         load = new Load();
         load.setId(30L);
         load.setPickupLocation("Depot");
         load.setDeliveryLocation("Customer site");
         load.setStatus(Load.STATUS_PENDING);
+        load.setAssignedDriver(driver);
+        load.setCargoType(CargoType.BAGGED);
 
         var principal = org.springframework.security.core.userdetails.User
                 .withUsername("drv")
@@ -170,6 +181,7 @@ class TripServiceImplTest {
         LoadedTrip loaded = new LoadedTrip();
         loaded.setId(2L);
         loaded.setDriver(driver);
+        loaded.setLoad(load);
         loaded.setStartMileage(1100.0);
         loaded.setStatus(TripStatus.ACTIVE);
 
@@ -269,6 +281,192 @@ class TripServiceImplTest {
         verify(loadRepository).save(loadCaptor.capture());
         assertEquals(Load.STATUS_DELIVERED, loadCaptor.getValue().getStatus());
         assertEquals(Load.STATUS_DELIVERED, load.getStatus());
+    }
+
+    @Test
+    void startDeadheadRejectsLoadAssignedToAnotherDriver() {
+        Driver other = new Driver();
+        other.setId(99L);
+        load.setAssignedDriver(other);
+
+        StartDeadheadRequest request = new StartDeadheadRequest();
+        request.setLoadId(30L);
+        request.setStartMileage(1000.0);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(loadRepository.findById(30L)).thenReturn(Optional.of(load));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> tripService.startDeadhead(request));
+
+        assertEquals(403, ex.getStatusCode().value());
+        assertEquals("This load is not assigned to you", ex.getReason());
+        verify(deadheadTripRepository, never()).save(any());
+        verify(loadRepository, never()).save(any());
+    }
+
+    @Test
+    void startDeadheadRejectsCargoVehicleTypeMismatchEvenWhenLoadIsAssigned() {
+        vehicle.setVehicleType(CargoType.BULK);
+        load.setCargoType(CargoType.BAGGED);
+
+        StartDeadheadRequest request = new StartDeadheadRequest();
+        request.setLoadId(30L);
+        request.setStartMileage(1000.0);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(loadRepository.findById(30L)).thenReturn(Optional.of(load));
+        when(vehicleRepository.findByDriver(driver)).thenReturn(Optional.of(vehicle));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> tripService.startDeadhead(request));
+
+        assertEquals(400, ex.getStatusCode().value());
+        assertEquals("Vehicle type BULK cannot carry cargo type BAGGED", ex.getReason());
+        verify(deadheadTripRepository, never()).save(any());
+        verify(loadRepository, never()).save(any());
+    }
+
+    @Test
+    void startDeadheadRejectsNegativeStartMileage() {
+        StartDeadheadRequest request = new StartDeadheadRequest();
+        request.setLoadId(30L);
+        request.setStartMileage(-1.0);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(loadRepository.findById(30L)).thenReturn(Optional.of(load));
+        when(vehicleRepository.findByDriver(driver)).thenReturn(Optional.of(vehicle));
+
+        InvalidMileageException ex = assertThrows(InvalidMileageException.class,
+                () -> tripService.startDeadhead(request));
+
+        assertEquals("startMileage must not be negative", ex.getMessage());
+        verify(deadheadTripRepository, never()).save(any());
+    }
+
+    @Test
+    void startDeadheadRejectsStartMileageBelowVehicleLastEnd() {
+        StartDeadheadRequest request = new StartDeadheadRequest();
+        request.setLoadId(30L);
+        request.setStartMileage(1499.0);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(loadRepository.findById(30L)).thenReturn(Optional.of(load));
+        when(vehicleRepository.findByDriver(driver)).thenReturn(Optional.of(vehicle));
+        when(tripRepository.findEndMileagesForVehicle(eq(20L), any(Pageable.class)))
+                .thenReturn(List.of(1500.0));
+
+        InvalidMileageException ex = assertThrows(InvalidMileageException.class,
+                () -> tripService.startDeadhead(request));
+
+        assertEquals(
+                "startMileage must not be lower than the vehicle's last recorded end mileage (1500.0)",
+                ex.getMessage());
+        verify(deadheadTripRepository, never()).save(any());
+    }
+
+    @Test
+    void endDeadheadRejectsNegativeEndMileage() {
+        DeadheadTrip deadhead = activeDeadhead(1000.0);
+        EndDeadheadRequest request = new EndDeadheadRequest();
+        request.setEndMileage(-1.0);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(deadheadTripRepository.findById(1L)).thenReturn(Optional.of(deadhead));
+
+        InvalidMileageException ex = assertThrows(InvalidMileageException.class,
+                () -> tripService.endDeadhead(1L, request));
+
+        assertEquals("endMileage must not be negative", ex.getMessage());
+        verify(deadheadTripRepository, never()).save(any());
+    }
+
+    @Test
+    void endLoadedRejectsNegativeEndMileage() {
+        LoadedTrip loaded = new LoadedTrip();
+        loaded.setId(2L);
+        loaded.setDriver(driver);
+        loaded.setLoad(load);
+        loaded.setStartMileage(1100.0);
+        loaded.setStatus(TripStatus.ACTIVE);
+
+        EndLoadedTripRequest request = new EndLoadedTripRequest();
+        request.setEndMileage(-5.0);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(loadedTripRepository.findById(2L)).thenReturn(Optional.of(loaded));
+
+        InvalidMileageException ex = assertThrows(InvalidMileageException.class,
+                () -> tripService.endLoaded(2L, request));
+
+        assertEquals("endMileage must not be negative", ex.getMessage());
+        verify(loadedTripRepository, never()).save(any());
+    }
+
+    @Test
+    void endDeadheadRejectsWhenTripBelongsToAnotherDriver() {
+        Driver other = new Driver();
+        other.setId(99L);
+        DeadheadTrip deadhead = activeDeadhead(1000.0);
+        deadhead.setDriver(other);
+
+        EndDeadheadRequest request = new EndDeadheadRequest();
+        request.setEndMileage(1100.0);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(deadheadTripRepository.findById(1L)).thenReturn(Optional.of(deadhead));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> tripService.endDeadhead(1L, request));
+
+        assertEquals(403, ex.getStatusCode().value());
+        assertEquals("Trip does not belong to the authenticated driver", ex.getReason());
+        verify(loadedTripRepository, never()).save(any());
+    }
+
+    @Test
+    void findActiveTripForCurrentDriverReturnsDeadheadLeg() {
+        DeadheadTrip deadhead = activeDeadhead(1000.0);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(tripRepository.findActiveTripByDriverId(10L, TripStatus.ACTIVE)).thenReturn(Optional.of(deadhead));
+
+        DriverActiveTripResponse body = tripService.findActiveTripForCurrentDriver().orElseThrow();
+
+        assertEquals(1L, body.getId());
+        assertEquals(TripLegType.DEADHEAD, body.getLeg());
+        assertEquals(30L, body.getLoadId());
+        assertEquals(1000.0, body.getStartMileage());
+        assertEquals(TripStatus.ACTIVE, body.getStatus());
+    }
+
+    @Test
+    void findActiveTripForCurrentDriverReturnsLoadedLeg() {
+        LoadedTrip loaded = new LoadedTrip();
+        loaded.setId(2L);
+        loaded.setDriver(driver);
+        loaded.setLoad(load);
+        loaded.setStartMileage(1100.0);
+        loaded.setStatus(TripStatus.ACTIVE);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(tripRepository.findActiveTripByDriverId(10L, TripStatus.ACTIVE)).thenReturn(Optional.of(loaded));
+
+        DriverActiveTripResponse body = tripService.findActiveTripForCurrentDriver().orElseThrow();
+
+        assertEquals(2L, body.getId());
+        assertEquals(TripLegType.LOADED, body.getLeg());
+        assertEquals(30L, body.getLoadId());
+        assertEquals(1100.0, body.getStartMileage());
+        assertEquals(TripStatus.ACTIVE, body.getStatus());
+    }
+
+    @Test
+    void findActiveTripForCurrentDriverReturnsEmptyWhenNone() {
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(tripRepository.findActiveTripByDriverId(10L, TripStatus.ACTIVE)).thenReturn(Optional.empty());
+
+        assertTrue(tripService.findActiveTripForCurrentDriver().isEmpty());
     }
 
     private DeadheadTrip activeDeadhead(double startMileage) {

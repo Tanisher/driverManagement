@@ -1,6 +1,7 @@
 package com.logistics.service.Impl;
 
 import com.logistics.DTO.DeadheadEndResponse;
+import com.logistics.DTO.DriverActiveTripResponse;
 import com.logistics.DTO.EndDeadheadRequest;
 import com.logistics.DTO.EndLoadedTripRequest;
 import com.logistics.DTO.StartDeadheadRequest;
@@ -15,7 +16,6 @@ import com.logistics.entity.Trip;
 import com.logistics.entity.TripDTO;
 import com.logistics.entity.TripStatus;
 import com.logistics.entity.Vehicle;
-import com.logistics.exception.InvalidMileageException;
 import com.logistics.repository.CustomerRepository;
 import com.logistics.repository.DeadheadTripRepository;
 import com.logistics.repository.DriverRepository;
@@ -23,7 +23,10 @@ import com.logistics.repository.LoadRepository;
 import com.logistics.repository.LoadedTripRepository;
 import com.logistics.repository.TripRepository;
 import com.logistics.repository.VehicleRepository;
+import com.logistics.service.CargoCompatibility;
+import com.logistics.service.MileageValidation;
 import com.logistics.service.TripService;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -67,12 +70,24 @@ public class TripServiceImpl implements TripService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<DriverActiveTripResponse> findActiveTripForCurrentDriver() {
+        Driver driver = currentDriver();
+        return tripRepository.findActiveTripByDriverId(driver.getId(), TripStatus.ACTIVE)
+                .map(tripMapper::toActiveTrip);
+    }
+
+    @Override
     @Transactional
     public TripResponse startDeadhead(StartDeadheadRequest request) {
         Driver driver = currentDriver();
-        Vehicle vehicle = standingVehicle(driver);
         Load load = loadRepository.findById(request.getLoadId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Load not found"));
+        assertLoadAssignedTo(load, driver);
+
+        Vehicle vehicle = standingVehicle(driver);
+        CargoCompatibility.assertVehicleCanCarry(vehicle.getVehicleType(), load.getCargoType());
+        validateStartMileage(request.getStartMileage(), vehicle);
 
         if (tripRepository.existsByDriverIdAndStatus(driver.getId(), TripStatus.ACTIVE)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Driver already has an active trip");
@@ -98,8 +113,11 @@ public class TripServiceImpl implements TripService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deadhead trip not found"));
 
         assertOwnedBy(deadhead, driver);
+        assertLoadAssignedTo(deadhead.getLoad(), driver);
         assertActive(deadhead, "Deadhead trip is not active");
-        validateEndMileage(deadhead.getStartMileage(), request.getEndMileage());
+        MileageValidation.assertEndNotBelowStart(deadhead.getStartMileage(), request.getEndMileage());
+        MileageValidation.assertNotBelowLastRecorded(
+                request.getEndMileage(), latestEndMileage(deadhead.getVehicle()));
 
         LocalDateTime now = LocalDateTime.now();
         deadhead.setEndMileage(request.getEndMileage());
@@ -137,8 +155,9 @@ public class TripServiceImpl implements TripService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loaded trip not found"));
 
         assertOwnedBy(loaded, driver);
+        assertLoadAssignedTo(loaded.getLoad(), driver);
         assertActive(loaded, "Loaded trip is not active");
-        validateEndMileage(loaded.getStartMileage(), request.getEndMileage());
+        MileageValidation.assertEndNotBelowStart(loaded.getStartMileage(), request.getEndMileage());
 
         loaded.setEndMileage(request.getEndMileage());
         loaded.setEndTime(LocalDateTime.now());
@@ -166,7 +185,12 @@ public class TripServiceImpl implements TripService {
         Customer customer = customerRepository.findById(tripDTO.getCustomerId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
 
-        validateEndMileage(tripDTO.getStartingMillage(), tripDTO.getEndingMillage());
+        Vehicle vehicle = vehicleRepository.findByDriver(driver).orElse(driver.getVehicle());
+        if (vehicle == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Driver has no standing vehicle assignment");
+        }
+        validateStartMileage(tripDTO.getStartingMillage(), vehicle);
+        MileageValidation.assertEndNotBelowStart(tripDTO.getStartingMillage(), tripDTO.getEndingMillage());
 
         LocalDateTime start = tripDTO.getDateTime() != null ? tripDTO.getDateTime() : LocalDateTime.now();
         LoadedTrip trip = new LoadedTrip();
@@ -185,11 +209,6 @@ public class TripServiceImpl implements TripService {
         trip.setCustomer(customer);
         trip.setStatus(TripStatus.COMPLETED);
         trip.setTripGroupId(UUID.randomUUID().toString());
-
-        Vehicle vehicle = vehicleRepository.findByDriver(driver).orElse(driver.getVehicle());
-        if (vehicle == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Driver has no standing vehicle assignment");
-        }
         trip.setVehicle(vehicle);
         if (trip.getPlateNumber() == null) {
             trip.setPlateNumber(vehicle.getLicensePlate());
@@ -200,6 +219,14 @@ public class TripServiceImpl implements TripService {
 
     @Override
     public Trip saveTrip(Trip trip) {
+        MileageValidation.assertNonNegative(trip.getStartMileage(), "startMileage");
+        if (trip.getEndMileage() != null) {
+            MileageValidation.assertEndNotBelowStart(trip.getStartMileage(), trip.getEndMileage());
+        }
+        if (trip.getVehicle() != null) {
+            MileageValidation.assertNotBelowLastRecorded(
+                    trip.getStartMileage(), latestEndMileage(trip.getVehicle()));
+        }
         return tripRepository.save(trip);
     }
 
@@ -270,6 +297,16 @@ public class TripServiceImpl implements TripService {
                         HttpStatus.BAD_REQUEST, "Driver has no standing vehicle assignment"));
     }
 
+    private void assertLoadAssignedTo(Load load, Driver driver) {
+        if (load == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This load is not assigned to you");
+        }
+        Driver assigned = load.getAssignedDriver();
+        if (assigned == null || assigned.getId() == null || !assigned.getId().equals(driver.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This load is not assigned to you");
+        }
+    }
+
     private void assertOwnedBy(Trip trip, Driver driver) {
         if (trip.getDriver() == null || !trip.getDriver().getId().equals(driver.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip does not belong to the authenticated driver");
@@ -282,12 +319,17 @@ public class TripServiceImpl implements TripService {
         }
     }
 
-    private void validateEndMileage(Double startMileage, Double endMileage) {
-        if (endMileage == null) {
-            throw new InvalidMileageException("endMileage is required");
+    private void validateStartMileage(Double startMileage, Vehicle vehicle) {
+        MileageValidation.assertNonNegative(startMileage, "startMileage");
+        MileageValidation.assertNotBelowLastRecorded(startMileage, latestEndMileage(vehicle));
+    }
+
+    private Double latestEndMileage(Vehicle vehicle) {
+        if (vehicle == null || vehicle.getId() == null) {
+            return null;
         }
-        if (startMileage != null && endMileage < startMileage) {
-            throw new InvalidMileageException("endMileage must not be lower than startMileage");
-        }
+        List<Double> ends = tripRepository.findEndMileagesForVehicle(
+                vehicle.getId(), PageRequest.of(0, 1));
+        return ends.isEmpty() ? null : ends.get(0);
     }
 }

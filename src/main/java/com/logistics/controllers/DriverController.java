@@ -1,9 +1,11 @@
 package com.logistics.controllers;
 
+import com.logistics.DTO.DriverActiveTripResponse;
 import com.logistics.DTO.DriverDTO;
 import com.logistics.entity.Driver;
 import com.logistics.DTO.DriverMapper;
 import com.logistics.service.DriverService;
+import com.logistics.service.TripService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,11 +19,20 @@ public class DriverController {
 
     private final DriverService driverService;
     private final DriverMapper driverMapper;
+    private final TripService tripService;
 
     @Autowired
-    public DriverController(DriverService driverService, DriverMapper driverMapper) {
+    public DriverController(DriverService driverService, DriverMapper driverMapper, TripService tripService) {
         this.driverService = driverService;
         this.driverMapper = driverMapper;
+        this.tripService = tripService;
+    }
+
+    @GetMapping("/me/active-trip")
+    public ResponseEntity<DriverActiveTripResponse> getMyActiveTrip() {
+        return tripService.findActiveTripForCurrentDriver()
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     // Add error handling for driver creation

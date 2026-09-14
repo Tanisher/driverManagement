@@ -19,4 +19,5 @@ public class LoadBillableAmountResponse {
     private PricingMode pricingMode;
     private BigDecimal billableAmount;
     private BigDecimal loadedKm;
+    private boolean weightEstimated;
 }

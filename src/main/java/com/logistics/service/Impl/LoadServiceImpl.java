@@ -1,6 +1,7 @@
 package com.logistics.service.Impl;
 
 import com.logistics.DTO.LoadBillableAmountResponse;
+import com.logistics.entity.CargoType;
 import com.logistics.entity.Customer;
 import com.logistics.entity.Driver;
 import com.logistics.entity.Load;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -117,6 +119,21 @@ public class LoadServiceImpl implements LoadService {
     }
 
     @Override
+    @Transactional
+    public Load setActualWeight(Long loadId, BigDecimal actualWeight) {
+        if (actualWeight == null || actualWeight.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "actualWeight must be greater than 0");
+        }
+        Load load = requireLoad(loadId);
+        if (load.getCargoType() != CargoType.BULK) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "actualWeight applies to BULK loads only");
+        }
+        load.setActualWeight(actualWeight);
+        return loadRepository.save(load);
+    }
+
+    @Override
     public LoadBillableAmountResponse getBillableAmount(Long loadId) {
         Load load = loadRepository.findById(loadId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Load not found"));
@@ -129,11 +146,11 @@ public class LoadServiceImpl implements LoadService {
         return LoadBillableAmountResponse.builder()
                 .loadId(load.getId())
                 .pricingMode(load.getPricingMode())
-                .billableAmount(LoadPricing.billableAmount(
-                        load.getPricingMode(), load.getRatePerKm(), load.getFlatAmount(), loadedTrip))
+                .billableAmount(LoadPricing.billableAmount(load, loadedTrip))
                 .loadedKm(load.getPricingMode() == PricingMode.PER_KM
                         ? LoadPricing.loadedDistanceKm(loadedTrip)
                         : null)
+                .weightEstimated(LoadPricing.isWeightEstimated(load))
                 .build();
     }
 
@@ -145,12 +162,14 @@ public class LoadServiceImpl implements LoadService {
         dto.setDescription(load.getDescription());
         dto.setStatus(load.getStatus());
         dto.setCargoType(load.getCargoType());
+        dto.setCargoTypeDefaulted(load.isCargoTypeDefaulted());
         dto.setPricingMode(load.getPricingMode());
         dto.setRatePerKm(load.getRatePerKm());
         dto.setFlatAmount(load.getFlatAmount());
         dto.setDeliveryLocation(load.getDeliveryLocation());
         dto.setPickupLocation(load.getPickupLocation());
         dto.setWeight(load.getWeight());
+        dto.setActualWeight(load.getActualWeight());
 
         if (load.getAssignedDriver() != null) {
             dto.setAssignedDriverId(load.getAssignedDriver().getId());
@@ -196,6 +215,9 @@ public class LoadServiceImpl implements LoadService {
         }
         if (!partial || incoming.getCargoType() != null) {
             existing.setCargoType(incoming.getCargoType());
+            if (incoming.getCargoType() != null) {
+                existing.setCargoTypeDefaulted(false);
+            }
         }
         if (!partial || incoming.getPricingMode() != null) {
             existing.setPricingMode(incoming.getPricingMode());
@@ -236,6 +258,7 @@ public class LoadServiceImpl implements LoadService {
         }
         if (patch.getCargoType() != null) {
             existing.setCargoType(patch.getCargoType());
+            existing.setCargoTypeDefaulted(false);
         }
         if (patch.getPricingMode() != null) {
             existing.setPricingMode(patch.getPricingMode());

@@ -114,6 +114,10 @@ public class VehicleController {
     @SendTo("/topic/vehicleLocation")
     public VehicleLocationMessage sendLocationUpdate(VehicleLocationMessage message) {
         logger.info("Received location update: {}", message);
+        vehicleService.updateVehicleLocation(
+                message.getVehicleId(),
+                message.getLatitude(),
+                message.getLongitude());
         return message;
     }
 

@@ -65,6 +65,13 @@ public class Vehicle {
     @Column(name = "vehicle_type")
     private CargoType vehicleType;
 
+    /**
+     * True when vehicleType was filled by the one-off GENERAL backfill, not by office.
+     */
+    @Column(name = "vehicle_type_defaulted", nullable = false)
+    @Builder.Default
+    private boolean vehicleTypeDefaulted = false;
+
     @ManyToOne
     @JoinColumn(name = "driver_id")
     private Driver driver;

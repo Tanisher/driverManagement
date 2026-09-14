@@ -38,4 +38,17 @@ public class TripMapper {
 
         return builder.build();
     }
+
+    public DriverActiveTripResponse toActiveTrip(Trip trip) {
+        if (trip == null) {
+            return null;
+        }
+        return DriverActiveTripResponse.builder()
+                .id(trip.getId())
+                .leg(trip.getLegType())
+                .loadId(trip.getLoad() != null ? trip.getLoad().getId() : null)
+                .startMileage(trip.getStartMileage())
+                .status(trip.getStatus())
+                .build();
+    }
 }

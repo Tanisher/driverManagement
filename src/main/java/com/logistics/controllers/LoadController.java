@@ -1,10 +1,12 @@
 package com.logistics.controllers;
 
+import com.logistics.DTO.ActualWeightRequest;
 import com.logistics.DTO.LoadBillableAmountResponse;
 import com.logistics.entity.Load;
 import com.logistics.entity.LoadDTO;
 import com.logistics.service.LoadService;
 import com.logistics.util.DriverAssignmentRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,6 +48,13 @@ public class LoadController {
     @GetMapping("/{id}")
     public Load getLoadById(@PathVariable Long id) {
         return loadService.getLoadById(id);
+    }
+
+    @PatchMapping("/{id}/actual-weight")
+    public ResponseEntity<LoadDTO> setActualWeight(@PathVariable Long id,
+                                                   @Valid @RequestBody ActualWeightRequest request) {
+        Load updated = loadService.setActualWeight(id, request.getActualWeight());
+        return ResponseEntity.ok(loadService.convertToDTO(updated));
     }
 
     @GetMapping("/{id}/billable-amount")

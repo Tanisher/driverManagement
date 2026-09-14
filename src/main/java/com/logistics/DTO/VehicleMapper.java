@@ -31,6 +31,7 @@ public class VehicleMapper {
         dto.setLatitude(vehicle.getLatitude());
         dto.setLongitude(vehicle.getLongitude());
         dto.setVehicleType(vehicle.getVehicleType());
+        dto.setVehicleTypeDefaulted(vehicle.isVehicleTypeDefaulted());
 
         if (vehicle.getDriver() != null) {
             dto.setDriver(driverMapper.toDTO(vehicle.getDriver()));

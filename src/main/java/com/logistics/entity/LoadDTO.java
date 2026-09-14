@@ -13,10 +13,12 @@ public class LoadDTO {
     private Long customerId;
     private String description;
     private String weight;
+    private BigDecimal actualWeight;
     private String pickupLocation;
     private String deliveryLocation;
     private String status;
     private CargoType cargoType;
+    private boolean cargoTypeDefaulted;
     private PricingMode pricingMode;
     private BigDecimal ratePerKm;
     private BigDecimal flatAmount;

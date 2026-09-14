@@ -1,5 +1,6 @@
 package com.logistics.DTO;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,5 +13,6 @@ public class StartDeadheadRequest {
     private Long loadId;
 
     @NotNull(message = "startMileage is required")
+    @DecimalMin(value = "0.0", inclusive = true, message = "startMileage must not be negative")
     private Double startMileage;
 }

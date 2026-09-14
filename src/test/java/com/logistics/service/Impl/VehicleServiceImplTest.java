@@ -74,4 +74,19 @@ class VehicleServiceImplTest {
         assertEquals(vehicle, driver.getVehicle());
         verify(vehicleRepository).save(vehicle);
     }
+
+    @Test
+    void updateVehicleLocationPersistsLatitudeAndLongitude() {
+        Vehicle vehicle = new Vehicle();
+        vehicle.setId(5L);
+
+        when(vehicleRepository.findById(5L)).thenReturn(Optional.of(vehicle));
+        when(vehicleRepository.save(any(Vehicle.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        vehicleService.updateVehicleLocation(5L, -17.825, 31.033);
+
+        assertEquals(-17.825, vehicle.getLatitude());
+        assertEquals(31.033, vehicle.getLongitude());
+        verify(vehicleRepository).save(vehicle);
+    }
 }
