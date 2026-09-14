@@ -2,6 +2,7 @@
 
 package com.logistics.service;
 
+import com.logistics.DTO.VehicleDTO;
 import com.logistics.entity.Fault;
 import com.logistics.entity.Vehicle;
 
@@ -14,6 +15,7 @@ public interface VehicleService {
     Optional<Vehicle> getVehicleById(Long id);
     Vehicle createVehicle(Vehicle vehicle);
     Vehicle updateVehicle(Long id, Vehicle vehicle);
+    Vehicle patchVehicle(Long id, VehicleDTO vehicleDTO);
     void deleteVehicle(Long id);
     List<Fault> getFaultsByVehicleId(Long vehicleId);
     void updateVehicleLocation(Long vehicleId, Double latitude, Double longitude);

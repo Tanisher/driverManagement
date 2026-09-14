@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -14,7 +16,9 @@ public class DriverDTO {
     private String name;
     private String lastName;
     private String idNumber;
+    private String nationalId;
     private String licenseNumber;
+    private LocalDate licenseExpiryDate;
     private String mobileNumber;
     private String address;
     private String nextOfKin;

@@ -1,6 +1,6 @@
 package com.logistics.controllers;
 
-import com.logistics.entity.User;
+import com.logistics.payload.SignupRequest;
 import com.logistics.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +19,8 @@ public class UserController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<String> registerUser(@Valid @RequestBody User user) {
-
-        userService.registerUser(user);
-
+    public ResponseEntity<String> registerUser(@Valid @RequestBody SignupRequest request) {
+        userService.registerUser(request);
         return ResponseEntity.ok("User registered successfully");
     }
 }

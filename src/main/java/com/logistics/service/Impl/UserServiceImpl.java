@@ -1,6 +1,7 @@
 package com.logistics.service.Impl;
 
 import com.logistics.entity.*;
+import com.logistics.payload.SignupRequest;
 import com.logistics.repository.*;
 import com.logistics.service.UserService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,95 +27,50 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User registerUser(User user) {
-        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+    public User registerUser(SignupRequest request) {
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new RuntimeException("Username already exists");
         }
 
-        // Encrypt password
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+        User.UserRole role = request.getRole() != null ? request.getRole() : User.UserRole.OFFICE;
 
-        switch (user.getRole()) {
+        switch (role) {
             case DRIVER:
-                // Convert User to Driver if it's not already a Driver
-                Driver driver = user instanceof Driver
-                        ? (Driver) user
-                        : convertToDriver(user);
-
-                // Set default values if not provided
+                Driver driver = new Driver();
+                applyUserFields(driver, request, encodedPassword, User.UserRole.DRIVER);
+                driver.setNationalId(request.getNationalId());
+                driver.setLicenseExpiryDate(request.getLicenseExpiryDate());
                 if (driver.getName() == null) {
                     driver.setName("Default Name");
                 }
                 if (driver.getLicenseNumber() == null) {
                     driver.setLicenseNumber("Default License");
                 }
-
                 return driverRepository.save(driver);
 
             case ADMIN:
-                Admin admin = user instanceof Admin
-                        ? (Admin) user
-                        : convertToAdmin(user);
+                Admin admin = new Admin();
+                applyUserFields(admin, request, encodedPassword, User.UserRole.ADMIN);
                 return adminRepository.save(admin);
 
             case MECHANIC:
-                Mechanic mechanic = user instanceof Mechanic
-                        ? (Mechanic) user
-                        : convertToMechanic(user);
+                Mechanic mechanic = new Mechanic();
+                applyUserFields(mechanic, request, encodedPassword, User.UserRole.MECHANIC);
                 return mechanicRepository.save(mechanic);
 
             case OFFICE:
-                OfficeStaff officeStaff = user instanceof OfficeStaff
-                        ? (OfficeStaff) user
-                        : convertToOfficeStaff(user);
-                return officeStaffRepository.save(officeStaff);
-
             default:
-                return userRepository.save(user);
+                OfficeStaff officeStaff = new OfficeStaff();
+                applyUserFields(officeStaff, request, encodedPassword, User.UserRole.OFFICE);
+                return officeStaffRepository.save(officeStaff);
         }
     }
 
-
-
-
-    private Driver convertToDriver(User user) {
-        System.out.println(user.getPassword()+"and"+user.getEmail());
-        Driver driver = new Driver();
-        driver.setId(user.getId());
-        driver.setUsername(user.getUsername());
-        driver.setPassword(user.getPassword());
-        driver.setEmail(user.getEmail());
-        driver.setRole(User.UserRole.DRIVER);
-        return driver;
-    }
-
-    private Admin convertToAdmin(User user) {
-        Admin admin = new Admin();
-        admin.setId(user.getId());
-        admin.setUsername(user.getUsername());
-        admin.setPassword(user.getPassword());
-        admin.setEmail(user.getEmail());
-        admin.setRole(User.UserRole.ADMIN);
-        return admin;
-    }
-
-    private OfficeStaff convertToOfficeStaff(User user) {
-        OfficeStaff officeStaff = new OfficeStaff();
-        officeStaff.setId(user.getId());
-        officeStaff.setUsername(user.getUsername());
-        officeStaff.setPassword(user.getPassword());
-        officeStaff.setEmail(user.getEmail());
-        officeStaff.setRole(User.UserRole.OFFICE);
-        return officeStaff;
-    }
-
-    private Mechanic convertToMechanic(User user) {
-        Mechanic mechanic = new Mechanic();
-        mechanic.setId(user.getId());
-        mechanic.setUsername(user.getUsername());
-        mechanic.setPassword(user.getPassword());
-        mechanic.setEmail(user.getEmail());
-        mechanic.setRole(User.UserRole.MECHANIC);
-        return mechanic;
+    private void applyUserFields(User user, SignupRequest request, String encodedPassword, User.UserRole role) {
+        user.setUsername(request.getUsername());
+        user.setPassword(encodedPassword);
+        user.setEmail(request.getEmail());
+        user.setRole(role);
     }
 }

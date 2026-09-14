@@ -36,6 +36,27 @@ public class DriverController {
         }
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<DriverDTO> updateDriver(@PathVariable Long id, @RequestBody DriverDTO driverDTO) {
+        Driver updated = driverService.updateDriver(id, driverDTO);
+        return ResponseEntity.ok(driverMapper.toDTO(updated));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<DriverDTO> patchDriver(@PathVariable Long id, @RequestBody DriverDTO driverDTO) {
+        Driver updated = driverService.patchDriver(id, driverDTO);
+        return ResponseEntity.ok(driverMapper.toDTO(updated));
+    }
+
+    @GetMapping("/expiring-licenses")
+    public ResponseEntity<List<DriverDTO>> getDriversWithExpiringLicenses() {
+        List<DriverDTO> driverDTOs = driverService.getDriversWithLicensesExpiringWithinDays(30)
+                .stream()
+                .map(driverMapper::toDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(driverDTOs);
+    }
+
     @GetMapping
     public ResponseEntity<List<DriverDTO>> getAllDrivers() {
         List<DriverDTO> driverDTOs = driverService.getAllDrivers()

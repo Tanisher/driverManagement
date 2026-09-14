@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Entity
@@ -23,6 +24,8 @@ public class Driver extends User {
     private String nextOfKinContact;
     private String mobileNumber;
     private String idNumber;
+    private String nationalId;
+    private LocalDate licenseExpiryDate;
 
     @JsonIgnore
     @ManyToOne

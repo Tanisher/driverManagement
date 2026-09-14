@@ -6,7 +6,9 @@ import com.logistics.DTO.FaultMapper;
 import com.logistics.DTO.VehicleMapper;
 import com.logistics.payload.VehicleLocationMessage;
 import com.logistics.service.VehicleService;
+import com.logistics.util.DriverAssignmentRequest;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,6 +71,12 @@ public class VehicleController {
         return ResponseEntity.ok(vehicleMapper.toDTO(updatedVehicle));
     }
 
+    @PatchMapping("/{id}")
+    public ResponseEntity<VehicleDTO> patchVehicle(@PathVariable Long id, @RequestBody VehicleDTO vehicleDTO) {
+        var updatedVehicle = vehicleService.patchVehicle(id, vehicleDTO);
+        return ResponseEntity.ok(vehicleMapper.toDTO(updatedVehicle));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVehicle(@PathVariable Long id) {
         vehicleService.deleteVehicle(id);
@@ -112,9 +120,8 @@ public class VehicleController {
     @PutMapping("/{vehicleId}/assign-driver")
     public ResponseEntity<VehicleDTO> assignDriverToVehicle(
             @PathVariable Long vehicleId,
-            @RequestBody Map<String, Long> request) {
-        Long driverId = request.get("driverId");
-        var vehicle = vehicleService.assignDriverToVehicle(vehicleId, driverId);
+            @Valid @RequestBody DriverAssignmentRequest request) {
+        var vehicle = vehicleService.assignDriverToVehicle(vehicleId, request.getDriverId());
         return ResponseEntity.ok(vehicleMapper.toDTO(vehicle));
     }
 

@@ -4,6 +4,8 @@ package com.logistics.entity;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 public class LoadDTO {
@@ -14,6 +16,11 @@ public class LoadDTO {
     private String pickupLocation;
     private String deliveryLocation;
     private String status;
+    private CargoType cargoType;
+    private PricingMode pricingMode;
+    private BigDecimal ratePerKm;
+    private BigDecimal flatAmount;
+    private Long assignedDriverId;
     private String customerName; // Optional: include customer name if needed
 
     // Constructors, getters, and setters

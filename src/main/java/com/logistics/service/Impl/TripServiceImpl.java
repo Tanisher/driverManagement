@@ -84,6 +84,9 @@ public class TripServiceImpl implements TripService {
         deadhead.setTripGroupId(UUID.randomUUID().toString());
         deadhead.setDestination(load.getPickupLocation());
 
+        load.setStatus(Load.STATUS_IN_TRANSIT);
+        loadRepository.save(load);
+
         return tripMapper.toResponse(deadheadTripRepository.save(deadhead));
     }
 
@@ -143,6 +146,12 @@ public class TripServiceImpl implements TripService {
         loaded.setFuelLitres(request.getFuelLitres());
         loaded.setTrailer1(request.getTrailer1());
         loaded.setTrailer2(request.getTrailer2());
+
+        Load load = loaded.getLoad();
+        if (load != null) {
+            load.setStatus(Load.STATUS_DELIVERED);
+            loadRepository.save(load);
+        }
 
         return tripMapper.toResponse(loadedTripRepository.save(loaded));
     }

@@ -61,6 +61,10 @@ public class Vehicle {
     @Column(nullable = true)
     private Double longitude;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vehicle_type")
+    private CargoType vehicleType;
+
     @ManyToOne
     @JoinColumn(name = "driver_id")
     private Driver driver;

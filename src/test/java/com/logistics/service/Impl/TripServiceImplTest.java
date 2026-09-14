@@ -74,6 +74,7 @@ class TripServiceImplTest {
         load.setId(30L);
         load.setPickupLocation("Depot");
         load.setDeliveryLocation("Customer site");
+        load.setStatus(Load.STATUS_PENDING);
 
         var principal = org.springframework.security.core.userdetails.User
                 .withUsername("drv")
@@ -99,6 +100,7 @@ class TripServiceImplTest {
         when(vehicleRepository.findByDriver(driver)).thenReturn(Optional.of(vehicle));
         when(loadRepository.findById(30L)).thenReturn(Optional.of(load));
         when(tripRepository.existsByDriverIdAndStatus(10L, TripStatus.ACTIVE)).thenReturn(false);
+        when(loadRepository.save(any(Load.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(deadheadTripRepository.save(any(DeadheadTrip.class))).thenAnswer(invocation -> {
             DeadheadTrip trip = invocation.getArgument(0);
             trip.setId(1L);
@@ -114,6 +116,8 @@ class TripServiceImplTest {
         assertEquals(TripStatus.ACTIVE, response.getStatus());
         assertEquals(1000.0, response.getStartMileage());
         assertNotNull(response.getTripGroupId());
+        assertEquals(Load.STATUS_IN_TRANSIT, load.getStatus());
+        verify(loadRepository).save(load);
     }
 
     @Test
@@ -180,6 +184,7 @@ class TripServiceImplTest {
 
         assertThrows(InvalidMileageException.class, () -> tripService.endLoaded(2L, request));
         verify(loadedTripRepository, never()).save(any());
+        verify(loadRepository, never()).save(any());
     }
 
     @Test
@@ -187,6 +192,7 @@ class TripServiceImplTest {
         LoadedTrip loaded = new LoadedTrip();
         loaded.setId(2L);
         loaded.setDriver(driver);
+        loaded.setLoad(load);
         loaded.setStartMileage(1100.0);
         loaded.setStatus(TripStatus.ACTIVE);
 
@@ -198,6 +204,7 @@ class TripServiceImplTest {
 
         when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
         when(loadedTripRepository.findById(2L)).thenReturn(Optional.of(loaded));
+        when(loadRepository.save(any(Load.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(loadedTripRepository.save(any(LoadedTrip.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = tripService.endLoaded(2L, request);
@@ -207,6 +214,61 @@ class TripServiceImplTest {
         assertEquals(80.5, response.getFuelLitres());
         assertEquals("T-1", response.getTrailer1());
         assertEquals("T-2", response.getTrailer2());
+    }
+
+    @Test
+    void startDeadheadSetsLoadStatusInTransit() {
+        load.setStatus(Load.STATUS_PENDING);
+        StartDeadheadRequest request = new StartDeadheadRequest();
+        request.setLoadId(30L);
+        request.setStartMileage(1000.0);
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(vehicleRepository.findByDriver(driver)).thenReturn(Optional.of(vehicle));
+        when(loadRepository.findById(30L)).thenReturn(Optional.of(load));
+        when(tripRepository.existsByDriverIdAndStatus(10L, TripStatus.ACTIVE)).thenReturn(false);
+        when(loadRepository.save(any(Load.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(deadheadTripRepository.save(any(DeadheadTrip.class))).thenAnswer(invocation -> {
+            DeadheadTrip trip = invocation.getArgument(0);
+            trip.setId(1L);
+            return trip;
+        });
+
+        tripService.startDeadhead(request);
+
+        ArgumentCaptor<Load> loadCaptor = ArgumentCaptor.forClass(Load.class);
+        verify(loadRepository).save(loadCaptor.capture());
+        assertEquals(Load.STATUS_IN_TRANSIT, loadCaptor.getValue().getStatus());
+        assertEquals(Load.STATUS_IN_TRANSIT, load.getStatus());
+    }
+
+    @Test
+    void endLoadedSetsLoadStatusDelivered() {
+        load.setStatus(Load.STATUS_IN_TRANSIT);
+        LoadedTrip loaded = new LoadedTrip();
+        loaded.setId(2L);
+        loaded.setDriver(driver);
+        loaded.setLoad(load);
+        loaded.setStartMileage(1100.0);
+        loaded.setStatus(TripStatus.ACTIVE);
+
+        EndLoadedTripRequest request = new EndLoadedTripRequest();
+        request.setEndMileage(1400.0);
+        request.setFuelLitres(80.5);
+        request.setTrailer1("T-1");
+        request.setTrailer2("T-2");
+
+        when(driverRepository.findByUsername("drv")).thenReturn(Optional.of(driver));
+        when(loadedTripRepository.findById(2L)).thenReturn(Optional.of(loaded));
+        when(loadRepository.save(any(Load.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(loadedTripRepository.save(any(LoadedTrip.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        tripService.endLoaded(2L, request);
+
+        ArgumentCaptor<Load> loadCaptor = ArgumentCaptor.forClass(Load.class);
+        verify(loadRepository).save(loadCaptor.capture());
+        assertEquals(Load.STATUS_DELIVERED, loadCaptor.getValue().getStatus());
+        assertEquals(Load.STATUS_DELIVERED, load.getStatus());
     }
 
     private DeadheadTrip activeDeadhead(double startMileage) {

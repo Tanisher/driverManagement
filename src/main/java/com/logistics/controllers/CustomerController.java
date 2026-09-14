@@ -1,5 +1,6 @@
 package com.logistics.controllers;
 
+import com.logistics.DTO.CustomerDTO;
 import com.logistics.entity.Customer;
 import com.logistics.service.CustomerService;
 import jakarta.transaction.Transactional;
@@ -18,14 +19,22 @@ public class CustomerController {
 
     @Transactional
     @PostMapping
-    public Customer createCustomer(@RequestBody Customer customer) {
-        System.out.println("attempt");
-        return customerService.saveCustomer(customer);
+    public CustomerDTO createCustomer(@RequestBody CustomerDTO customer) {
+        return customerService.createCustomer(customer);
+    }
+
+    @PutMapping("/{id}")
+    public CustomerDTO updateCustomer(@PathVariable Long id, @RequestBody CustomerDTO customer) {
+        return customerService.updateCustomer(id, customer);
+    }
+
+    @PatchMapping("/{id}")
+    public CustomerDTO patchCustomer(@PathVariable Long id, @RequestBody CustomerDTO customer) {
+        return customerService.patchCustomer(id, customer);
     }
 
     @GetMapping
     public List<Customer> getAllCustomers() {
-        System.out.println("customers requested");
         return customerService.getAllCustomers();
     }
 

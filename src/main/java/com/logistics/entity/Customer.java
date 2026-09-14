@@ -22,6 +22,9 @@ public class Customer {
     private String address;
     private String numberOfLoads;
     private String email;
+    private String accountNumber;
+    private String paymentTerms;
+    private String billingAddress;
 
     // Relationships
 

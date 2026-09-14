@@ -30,6 +30,7 @@ public class VehicleMapper {
         dto.setLastServiceDate(vehicle.getLastServiceDate());
         dto.setLatitude(vehicle.getLatitude());
         dto.setLongitude(vehicle.getLongitude());
+        dto.setVehicleType(vehicle.getVehicleType());
 
         if (vehicle.getDriver() != null) {
             dto.setDriver(driverMapper.toDTO(vehicle.getDriver()));
@@ -54,6 +55,7 @@ public class VehicleMapper {
         vehicle.setLastServiceDate(dto.getLastServiceDate());
         vehicle.setLatitude(dto.getLatitude());
         vehicle.setLongitude(dto.getLongitude());
+        vehicle.setVehicleType(dto.getVehicleType());
 
         if (dto.getDriver() != null) {
             vehicle.setDriver(driverMapper.toEntity(dto.getDriver()));

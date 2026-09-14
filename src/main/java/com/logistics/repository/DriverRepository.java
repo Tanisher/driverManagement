@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface DriverRepository extends JpaRepository<Driver, Long> {
@@ -12,4 +14,5 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
     @Query("SELECT d FROM Driver d WHERE d.username = :username")
     Optional<Driver> findByUsername(@Param("username") String username);
 
+    List<Driver> findByLicenseExpiryDateBetween(LocalDate from, LocalDate to);
 }

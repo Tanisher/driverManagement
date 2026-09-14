@@ -1,5 +1,6 @@
 package com.logistics.DTO;
 
+import com.logistics.entity.CargoType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,6 +23,7 @@ public class VehicleDTO {
     private String color;
     private boolean active;  // changed from Boolean to boolean
     private LocalDate lastServiceDate;  // changed from LocalDateTime to LocalDate
+    private CargoType vehicleType;
     private Double latitude;
     private Double longitude;
     private DriverDTO driver;

@@ -12,7 +12,9 @@ import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -58,6 +60,12 @@ public class VehicleServiceImpl implements VehicleService {
         Vehicle existingVehicle = vehicleRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vehicle not found."));
 
+        if (vehicle.getLicensePlate() != null
+                && !vehicle.getLicensePlate().equals(existingVehicle.getLicensePlate())
+                && vehicleRepository.existsByLicensePlateAndIdNot(vehicle.getLicensePlate(), id)) {
+            throw new IllegalArgumentException("Vehicle with the same license plate already exists.");
+        }
+
         existingVehicle.setLicensePlate(vehicle.getLicensePlate());
         existingVehicle.setMake(vehicle.getMake());
         existingVehicle.setModel(vehicle.getModel());
@@ -65,8 +73,47 @@ public class VehicleServiceImpl implements VehicleService {
         existingVehicle.setColor(vehicle.getColor());
         existingVehicle.setActive(vehicle.isActive());
         existingVehicle.setLastServiceDate(vehicle.getLastServiceDate());
+        existingVehicle.setVehicleType(vehicle.getVehicleType());
 
         return vehicleRepository.save(existingVehicle);
+    }
+
+    @Override
+    public Vehicle patchVehicle(Long id, com.logistics.DTO.VehicleDTO dto) {
+        Vehicle existing = vehicleRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Vehicle not found."));
+        if (dto.getLicensePlate() != null) {
+            if (!dto.getLicensePlate().equals(existing.getLicensePlate())
+                    && vehicleRepository.existsByLicensePlateAndIdNot(dto.getLicensePlate(), id)) {
+                throw new IllegalArgumentException("Vehicle with the same license plate already exists.");
+            }
+            existing.setLicensePlate(dto.getLicensePlate());
+        }
+        if (dto.getMake() != null) {
+            existing.setMake(dto.getMake());
+        }
+        if (dto.getModel() != null) {
+            existing.setModel(dto.getModel());
+        }
+        if (dto.getYear() != 0) {
+            existing.setYear(dto.getYear());
+        }
+        if (dto.getColor() != null) {
+            existing.setColor(dto.getColor());
+        }
+        if (dto.getLastServiceDate() != null) {
+            existing.setLastServiceDate(dto.getLastServiceDate());
+        }
+        if (dto.getVehicleType() != null) {
+            existing.setVehicleType(dto.getVehicleType());
+        }
+        if (dto.getLatitude() != null) {
+            existing.setLatitude(dto.getLatitude());
+        }
+        if (dto.getLongitude() != null) {
+            existing.setLongitude(dto.getLongitude());
+        }
+        return vehicleRepository.save(existing);
     }
 
     @Override
@@ -102,23 +149,41 @@ public class VehicleServiceImpl implements VehicleService {
     @Transactional
     public Vehicle assignDriverToVehicle(Long vehicleId, Long driverId) {
         if (vehicleId == null || driverId == null) {
-            throw new IllegalArgumentException("Vehicle ID and Driver ID must not be null");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vehicle ID and Driver ID must not be null");
         }
 
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
-                .orElseThrow(() -> new EntityNotFoundException("Vehicle not found with id: " + vehicleId));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Vehicle not found with id: " + vehicleId));
 
         Driver driver = driverRepository.findById(driverId)
-                .orElseThrow(() -> new EntityNotFoundException("Driver not found with id: " + driverId));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Driver not found with id: " + driverId));
 
-        // First unassign the driver from any existing vehicle
+        assertVehicleNotAssignedToAnotherDriver(vehicle, driverId);
+
+        if (vehicle.getDriver() != null && vehicle.getDriver().getId().equals(driverId)) {
+            return vehicle;
+        }
+
         vehicleRepository.findByDriver(driver).ifPresent(existingVehicle -> {
-            existingVehicle.setDriver(null);
-            vehicleRepository.save(existingVehicle);
+            if (!existingVehicle.getId().equals(vehicle.getId())) {
+                existingVehicle.setDriver(null);
+                vehicleRepository.save(existingVehicle);
+            }
         });
 
         vehicle.setDriver(driver);
         return vehicleRepository.save(vehicle);
+    }
+
+    private void assertVehicleNotAssignedToAnotherDriver(Vehicle vehicle, Long driverId) {
+        Driver currentDriver = vehicle.getDriver();
+        if (currentDriver != null && currentDriver.getId() != null && !currentDriver.getId().equals(driverId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Vehicle is already assigned to another driver");
+        }
     }
 
     @Override
