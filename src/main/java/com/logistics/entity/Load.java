@@ -36,7 +36,7 @@ public class Load {
 
     @JsonIgnore
     @OneToMany(mappedBy = "load")
-    private List<DriverTrip> trips;
+    private List<Trip> trips;
 
     // Getters, setters, constructors
 }

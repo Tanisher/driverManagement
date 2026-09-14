@@ -31,7 +31,7 @@ public class Customer {
 
     @JsonIgnore
     @OneToMany(mappedBy = "customer")
-    private List<DriverTrip> driverTrips;
+    private List<Trip> driverTrips;
 
 }
 
